@@ -1,0 +1,490 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages 
+from django.db.models import Q
+import pandas as pd
+from .forms import CustomerRegistrationForm, SellerRegistrationForm, LoginForm, MedicineForm,MedicineUploadForm, ProfileEditForm,SellerProfileForm, CustomerProfileForm
+from .forms import CheckoutForm
+from .models import Medicine, Order, OrderItem,CustomerProfile, Cart, CartItem,User
+
+# 🏠 Home Page
+def home(request):
+    return render(request, 'home.html')
+
+def register(request):
+    return render(request, 'register.html')
+
+# Customer Registration View
+def customer_register(request):
+    if request.method == 'POST':
+        form = CustomerRegistrationForm(request.POST)
+
+        if form.is_valid():
+            user = form.save()  # This already creates CustomerProfile
+            login(request, user)
+            return redirect('customer_dashboard')
+        else:
+            messages.error(request, "Please fix the errors below.")  
+    else:
+        form = CustomerRegistrationForm()
+
+    return render(request, 'register_customer.html', {'form': form})
+
+# Seller Registration View
+def seller_register(request):
+    if request.method == 'POST':
+        form = SellerRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('seller_dashboard')
+        else:
+            messages.error(request, "Error in form submission!")  # Display error message
+    else:
+        form = SellerRegistrationForm()
+    return render(request, 'register_seller.html', {'form': form})
+
+# 🔑 Login View
+def login_view(request):
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            user = authenticate(request, username=username, password=password)
+            
+            if user:
+                login(request, user)
+                # Redirect based on user role
+                if hasattr(user, 'customerprofile'):
+                    return redirect('customer_dashboard')
+                elif hasattr(user, 'sellerprofile'):
+                    return redirect('seller_dashboard')
+                else:
+                    return redirect('home')
+            else:
+                # Check if username exists
+                if not User.objects.filter(username=username).exists():
+                    messages.error(request, "Username not found.")
+                else:
+                    messages.error(request, "Incorrect password.")
+                    
+    else:
+        form = LoginForm()
+
+    return render(request, 'login.html',{'form':form})
+
+# 🚪 Logout View
+def logout_view(request):
+    logout(request)
+    return redirect('home')
+
+# 🏠 Customer Dashboard (Only for Customers)
+@login_required
+def customer_dashboard(request):
+    if not hasattr(request.user, 'customerprofile'):
+        return redirect('home')  # Prevent unauthorized access
+
+    medicines = Medicine.objects.all()
+    orders = Order.objects.filter(customer=request.user.customerprofile)
+
+    return render(request, 'customer_dashboard.html', {
+        'medicines': medicines,
+        'orders': orders
+    })
+
+# 🏪 Seller Dashboard (Only for Sellers)
+@login_required
+def seller_dashboard(request):
+    if not hasattr(request.user, 'sellerprofile'):
+        return redirect('home')  # Prevent unauthorized access
+
+    seller_profile = request.user.sellerprofile  # Get the seller profile
+
+    # Get all medicines listed by the seller
+    medicines = Medicine.objects.filter(seller=seller_profile)
+
+    # Get all order items where medicine is sold by this seller
+    order_items = OrderItem.objects.filter(medicine__in=medicines)
+
+    # Get all orders that contain these order items
+    orders = Order.objects.filter(orderitem__in=order_items).distinct()
+
+    return render(request, 'seller_dashboard.html', {
+        'medicines': medicines,
+        'orders': orders,  # Orders specific to this seller
+        })
+
+# 💊 Medicine List (Available to All)
+def medicine_list(request):
+    medicines = Medicine.objects.all()
+    return render(request, 'medicine_list.html', {'medicines': medicines})
+
+# 🔍 Medicine Detail View
+def medicine_detail(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk)
+    return render(request, 'medicine_detail.html', {'medicine': medicine})
+
+# 🏪 Add Medicine (Only for Sellers)
+@login_required
+def add_medicine(request):
+    if not hasattr(request.user, 'sellerprofile'):
+        return redirect('home')  # Prevent unauthorized access
+
+    if request.method == "POST":
+        form = MedicineForm(request.POST, request.FILES)
+        if form.is_valid():
+            medicine = form.save(commit=False)
+            medicine.seller = request.user.sellerprofile  # Assign the seller
+            medicine.save()
+            return redirect('seller_dashboard')  # Redirect to seller dashboard after adding
+    else:
+        form = MedicineForm()
+
+    return render(request, 'medicine_form.html', {'form': form})
+
+# edit medicine
+def edit_medicine(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk)
+
+    # Ensure the logged-in user is the seller of this medicine
+    if medicine.seller != request.user.sellerprofile:
+        return redirect('seller_dashboard')  # Prevent unauthorized access
+
+    if request.method == "POST":
+        form = MedicineForm(request.POST, request.FILES, instance=medicine)
+        if form.is_valid():
+            form.save()
+            return redirect('seller_dashboard')  # Redirect to seller's dashboard
+    else:
+        form = MedicineForm(instance=medicine)
+
+    return render(request, 'medicine_form.html', {'form': form, 'medicine': medicine})
+
+#delete medicine
+@login_required
+def delete_medicine(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk, seller=request.user.sellerprofile)
+
+    if request.method == 'POST':
+        medicine.delete()
+        return redirect('seller_dashboard')
+
+    return render(request, 'medicine_form.html', {'form': medicine, 'delete': True})
+
+@login_required
+def upload_medicine(request):
+    if not hasattr(request.user, 'sellerprofile'):
+        return redirect('home')  # Prevent unauthorized access
+
+    if request.method == 'POST':
+        form = MedicineUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            excel_file = request.FILES['file']
+
+            try:
+                df = pd.read_excel(excel_file)  # Read the Excel file using pandas
+                
+                # Ensure required columns exist
+                required_columns = {'name', 'description', 'price', 'stock', 'active_ingredients', 'brand_name'}
+                if not required_columns.issubset(df.columns):
+                    messages.error(request, "Invalid file format! Missing required columns.")
+                    return redirect('upload_medicine')
+
+                # Loop through the rows and save medicines to the database
+                for _, row in df.iterrows():
+                    Medicine.objects.create(
+                        seller=request.user.sellerprofile,
+                        name=row['name'],
+                        description=row.get('description', ''),
+                        price=row['price'],
+                        stock=row['stock'],
+                        active_ingredients=row.get('active_ingredients', ''),
+                        brand_name=row.get('brand_name', '')
+                    )
+
+                messages.success(request, "Medicines uploaded successfully!")
+                return redirect('seller_dashboard')
+
+            except Exception as e:
+                messages.error(request, f"Error processing file: {e}")
+
+    else:
+        form = MedicineUploadForm()
+
+    return render(request, 'upload_medicine.html', {'form': form})
+
+# Edit Seller Profile (Only for Sellers)
+
+@login_required
+def edit_seller_profile(request):
+    if not hasattr(request.user, 'sellerprofile'):
+        return redirect('home')  # Prevent unauthorized access
+
+    user = request.user
+    seller = user.sellerprofile
+
+    if request.method == "POST":
+        user_form = ProfileEditForm(request.POST, instance=user)
+        profile_form = SellerProfileForm(request.POST, instance=seller)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, "Profile updated successfully!")
+            return redirect('seller_dashboard')
+
+    else:
+        user_form = ProfileEditForm(instance=user)
+        profile_form = SellerProfileForm(instance=seller)
+
+    return render(request, 'register_seller.html', {
+        'form': user_form,
+        'profile_form': profile_form,
+        'editing': True
+    })
+
+#Edit Customer Profile (Only for Customers)
+
+@login_required
+def edit_customer_profile(request):
+    """Allows customers to edit their profile."""
+    if not hasattr(request.user, 'customerprofile'):
+        messages.error(request, "You are not registered as a customer.")
+        return redirect('home')
+
+    customer_profile = request.user.customerprofile
+
+    if request.method == "POST":
+        user_form = ProfileEditForm(request.POST, instance=request.user)
+        profile_form = CustomerProfileForm(request.POST, instance=customer_profile)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, "Profile updated successfully!")
+            return redirect('customer_dashboard')
+        else:
+            messages.error(request, "Error updating profile. Please check the details.")
+    else:
+        user_form = ProfileEditForm(instance=request.user)
+        profile_form = CustomerProfileForm(instance=customer_profile)
+
+    return render(request, 'register_customer.html', {
+        'form': user_form,
+        'profile_form': profile_form,
+        'editing': True  # Indicate that we are in editing mode
+    })
+
+#Browse Medicines (Available to All)
+def browse_medicines(request):
+    # Restirict Access to sellers
+    if request.user.is_authenticated and hasattr(request.user, 'sellerprofile'):
+        return redirect('seller_dashboard')
+    
+    medicines = Medicine.objects.all()
+
+    # Get filter parameters from request
+    query = request.GET.get('q', '')  # Search query
+    category = request.GET.get('category')
+    form = request.GET.get('form')
+    brand = request.GET.get('brand')
+    stock = request.GET.get('stock')
+    sort = request.GET.get('sort')
+
+    # Apply search filter
+    if query:
+        medicines = medicines.filter(
+            Q(name__icontains=query) | Q(active_ingredients__icontains=query)
+
+        )
+
+    # Apply additional filters
+    if category:
+        medicines = medicines.filter(description__icontains=category)
+    if form:
+        medicines = medicines.filter(description__icontains=form)
+    if brand:
+        medicines = medicines.filter(brand_name=brand)
+    if stock == 'in_stock':
+        medicines = medicines.filter(stock__gt=0)
+    elif stock == 'out_of_stock':
+        medicines = medicines.filter(stock=0)
+    
+    # Sorting logic
+    if sort == 'name_asc':
+        medicines = medicines.order_by('name')
+    elif sort == 'name_desc':
+        medicines = medicines.order_by('-name')
+    elif sort == 'newest':
+        medicines = medicines.order_by('-id')  # Assuming ID represents order of addition
+
+    # Get distinct filter options for dropdowns
+    brands = Medicine.objects.values_list('brand_name', flat=True).distinct()
+
+    return render(request, 'browse_medicines.html', {
+        'medicines': medicines,
+        'brands': brands,
+        'query': query,  # Pass query to the template for retaining search input
+    })
+
+
+# Medicine Detail View with Alternatives
+def medicine_detail(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk)
+    alternatives = medicine.get_alternative_medicines()  # Fetch alternatives based on active ingredients
+    
+    return render(request, 'medicine_detail.html', {
+        'medicine': medicine,
+        'alternatives': alternatives,
+    })
+
+
+#Cart and CartItem
+# Ensure customer has a cart
+def get_or_create_cart(user):
+    customer, _ = CustomerProfile.objects.get_or_create(user=user)
+    cart, _ = Cart.objects.get_or_create(customer=customer)
+    return cart
+
+# Add to Cart
+@login_required
+def add_to_cart(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk)
+    cart = get_or_create_cart(request.user)
+    
+    cart_item, created = CartItem.objects.get_or_create(cart=cart, medicine=medicine)
+    
+    if not created:
+        cart_item.quantity += 1  # If already in cart, increase quantity
+    cart_item.save()
+
+    return redirect('view_cart')
+
+# Remove from Cart
+@login_required
+def remove_from_cart(request, pk):
+    cart = get_or_create_cart(request.user)
+    cart_item = CartItem.objects.filter(cart=cart, medicine_id=pk).first()
+    
+    if cart_item:
+        cart_item.delete()
+
+    return redirect('view_cart')
+
+# Update Cart (Increase/Decrease Quantity)
+@login_required
+def update_cart(request, pk, action):
+    cart = get_or_create_cart(request.user)
+    cart_item = CartItem.objects.filter(cart=cart, medicine_id=pk).first()
+
+    if cart_item:
+        if action == "increase":
+            cart_item.quantity += 1
+        elif action == "decrease" and cart_item.quantity > 1:
+            cart_item.quantity -= 1
+        cart_item.save()
+    
+    return redirect('view_cart')
+
+# View Cart
+@login_required
+def view_cart(request):
+    cart = get_or_create_cart(request.user)
+    cart_items = cart.cartitem_set.all()
+    total_price = cart.get_total()
+    
+    return render(request, 'cart.html', {
+        'cart_items': cart_items,
+        'total_price': total_price
+    })
+
+# Clear Cart
+@login_required
+def clear_cart(request):
+    cart = get_or_create_cart(request.user)
+    cart.cartitem_set.all().delete()
+    
+    return redirect('view_cart')
+
+# Checkout View
+@login_required
+def checkout(request):
+    cart = get_or_create_cart(request.user)
+    cart_items = cart.cartitem_set.all()
+    total_price = cart.get_total()
+
+    # Fetch user details from profile
+    customer = request.user.customerprofile  
+    full_name = request.user.get_full_name() or request.user.username  
+    email = request.user.email  
+    phone = customer.phone_number  
+
+    if request.method == "POST":
+        form = CheckoutForm(request.POST)
+        if form.is_valid():
+            # Create Order
+            order = Order.objects.create(
+                customer=customer,
+                full_name=full_name,
+                email=email,
+                phone=phone,
+                alternate_phone=form.cleaned_data.get('alternate_phone', ''),
+                address=form.cleaned_data['address'],
+                city=form.cleaned_data['city'],
+                pincode=form.cleaned_data['pincode'],
+                delivery_instructions=form.cleaned_data.get('delivery_instructions', ''),
+                total_price=total_price,
+                payment_method=form.cleaned_data['payment_method'],
+                status='Pending'
+            )
+
+            # Move cart items to order and reduce stock
+            for item in cart_items:
+                OrderItem.objects.create(
+                    order=order,
+                    medicine=item.medicine,
+                    quantity=item.quantity,
+                    price=item.medicine.price,
+                )
+                # Reduce stock
+                item.medicine.stock -= item.quantity
+                item.medicine.save()
+
+            # Clear the cart
+            cart.cartitem_set.all().delete()
+
+            messages.success(request, "Your order has been placed successfully!")
+            return redirect('order_success')
+
+    else:
+        form = CheckoutForm()
+
+    return render(request, 'checkout.html', {
+        'form': form,
+        'cart_items': cart_items,
+        'total_price': total_price,
+        'full_name': full_name,
+        'email': email,
+        'phone': phone
+    })
+
+
+# Order Success View
+@login_required
+def order_success(request):
+    return render(request, 'order_success.html')
+
+#Education Tab
+def education_articles(request):
+    return render(request, 'education_articles.html')
+
+def education_infographics(request):
+    return render(request, 'education_infographics.html')
+
+def education_faqs(request):
+    return render(request, 'education_faqs.html')
+
+def education_videos(request):
+    return render(request, 'education_videos.html')

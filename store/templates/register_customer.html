@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2 class="text-center">
+            {% if editing %} Edit Profile {% else %} Register as Customer {% endif %}
+        </h2>
+
+        {% if form.errors or profile_form.errors %}
+            <div class="alert alert-danger">
+                <strong>Errors:</strong>
+                <ul>
+                    {% for field, errors in form.errors.items %}
+                        <li><strong>{{ field|title }}:</strong> {{ errors.0 }}</li>
+                    {% endfor %}
+                    {% for field, errors in profile_form.errors.items %}
+                        <li><strong>{{ field|title }}:</strong> {{ errors.0 }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- User Fields -->
+            <div class="mb-3">
+                <label for="id_username" class="form-label">Username</label>
+                {{ form.username }}
+                <div class="text-danger">{{ form.username.errors }}</div>
+            </div>
+            <div class="mb-3">
+                <label for="id_email" class="form-label">Email</label>
+                {{ form.email }}
+                <div class="text-danger">{{ form.email.errors }}</div>
+            </div>
+
+            {% if not editing %}
+                <div class="mb-3">
+                    <label for="id_password1" class="form-label">Password</label>
+                    {{ form.password1 }}
+                    <div class="text-danger">{{ form.password1.errors }}</div>
+                </div>
+                <div class="mb-3">
+                    <label for="id_password2" class="form-label">Confirm Password</label>
+                    {{ form.password2 }}
+                    <div class="text-danger">{{ form.password2.errors }}</div>
+                </div>
+            {% endif %}
+
+            <!-- Customer Profile Fields -->
+            <div class="mb-3">
+                <label for="id_phone_number" class="form-label">Phone Number</label>
+                {{ form.phone_number }}
+                <div class="text-danger">{{ form.phone_number.errors }}</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_address" class="form-label">Address</label>
+                {{ form.address }}
+                <div class="text-danger">{{ form.address.errors }}</div>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">
+                {% if editing %} Save Changes {% else %} Register {% endif %}
+            </button>
+        </form>
+
+        {% if not editing %}
+            <p class="text-center mt-3">Already have an account? <a href="{% url 'login' %}">Login here</a></p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

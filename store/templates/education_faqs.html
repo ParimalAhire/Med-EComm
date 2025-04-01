@@ -1,0 +1,32 @@
+{% extends 'education_base.html' %}
+
+{% block education_content %}
+<h2>Frequently Asked Questions</h2>
+<div class="accordion" id="faqAccordion">
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                Are generic medicines as effective as branded ones?
+            </button>
+        </h2>
+        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">
+                Yes, generic medicines contain the same active ingredients and undergo strict quality checks to ensure they are just as effective.
+            </div>
+        </div>
+    </div>
+
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                Why are generic medicines cheaper?
+            </button>
+        </h2>
+        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">
+                Generic medicines are cheaper because they do not require extensive research and marketing costs like branded medicines.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

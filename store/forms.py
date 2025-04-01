@@ -1,0 +1,106 @@
+from django import forms
+from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from .models import CustomerProfile, SellerProfile,Medicine
+
+# Customer Registration Form
+class CustomerRegistrationForm(UserCreationForm):  
+    phone_number = forms.CharField(
+        max_length=15, 
+        required=True, 
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    address = forms.CharField(
+        required=True, 
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password1', 'password2', 'phone_number', 'address']
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])  
+        
+        if commit:
+            user.save()
+            CustomerProfile.objects.create(
+                user=user,
+                phone_number=self.cleaned_data['phone_number'],
+                address=self.cleaned_data['address']
+            )
+        return user
+
+# Seller Registration Form
+class SellerRegistrationForm(UserCreationForm):  # Use UserCreationForm
+    business_name = forms.CharField(max_length=255)
+    phone_number = forms.CharField(max_length=15)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password1', 'password2','business_name','phone_number']  # Use password1 and password2 for validation
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])  # Ensure password is hashed
+        if commit:
+            user.save()
+            SellerProfile.objects.create(
+                user=user,
+                business_name=self.cleaned_data['business_name'],
+                phone_number=self.cleaned_data['phone_number']
+            )
+        return user
+
+# Medicine form
+class MedicineForm(forms.ModelForm):
+    class Meta:
+        model = Medicine
+        fields = ['name', 'description', 'price', 'stock', 'image']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'price': forms.NumberInput(attrs={'class': 'form-control'}),
+            'stock': forms.NumberInput(attrs={'class': 'form-control'}),
+            'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }
+
+# Login Form
+class LoginForm(forms.Form):
+    username = forms.CharField()
+    password = forms.CharField(widget=forms.PasswordInput)
+
+class MedicineUploadForm(forms.Form):
+    file = forms.FileField()
+
+
+class SellerProfileForm(forms.ModelForm):
+    class Meta:
+        model = SellerProfile
+        fields = ['business_name', 'phone_number']
+
+class CustomerProfileForm(forms.ModelForm):
+    class Meta:
+        model = CustomerProfile
+        fields = ['phone_number', 'address']
+
+class ProfileEditForm(UserChangeForm):
+    class Meta:
+        model = User
+        fields = ['username', 'email']
+        exclude = ['password']  # Exclude password field to avoid unnecessary updates
+
+#Checkout Form
+class CheckoutForm(forms.Form):
+    address = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}))
+    city = forms.CharField(max_length=50, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    pincode = forms.CharField(max_length=10, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    
+    alternate_phone = forms.CharField(max_length=15, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    delivery_instructions = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}))
+
+    payment_method = forms.ChoiceField(
+        choices=[('cod', 'Cash on Delivery (COD)'), ('online', 'Online Payment')],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )

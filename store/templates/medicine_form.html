@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-3">
+        {% if delete %}
+            Delete Medicine
+        {% elif form.instance.pk %}
+            Edit Medicine
+        {% else %}
+            Add Medicine
+        {% endif %}
+    </h2>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% if delete %}
+            <p>Are you sure you want to delete <strong>{{ form.instance.name }}</strong>?</p>
+        {% else %}
+            <div class="mb-3">
+                <label for="id_name" class="form-label">Medicine Name</label>
+                {{ form.name }}
+            </div>
+            <div class="mb-3">
+                <label for="id_description" class="form-label">Description</label>
+                {{ form.description }}
+            </div>
+            <div class="mb-3">
+                <label for="id_price" class="form-label">Price (₹)</label>
+                {{ form.price }}
+            </div>
+            <div class="mb-3">
+                <label for="id_stock" class="form-label">Stock Quantity</label>
+                {{ form.stock }}
+            </div>
+            <div class="mb-3">
+                <label for="id_image" class="form-label">Upload Image</label>
+                {{ form.image }}
+            </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-{% if delete %}danger{% else %}primary{% endif %}">
+            {% if delete %}Delete{% elif form.instance.pk %}Save Changes{% else %}Add Medicine{% endif %}
+        </button>
+        <a href="{% url 'seller_dashboard' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

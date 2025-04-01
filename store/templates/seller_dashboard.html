@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center">Seller Dashboard</h2>
+    
+    <div class="row">
+        <!-- Seller Profile Section -->
+        <div class="col-md-4">
+            <div class="card shadow-sm p-3 mb-4">
+                <h4 class="text-center">🏪 My Profile</h4>
+                <p><strong>Business Name:</strong> {{ user.sellerprofile.business_name }}</p>
+                <p><strong>Username:</strong> {{ user.username }}</p>
+                <p><strong>Email:</strong> {{ user.email }}</p>
+                <p><strong>Phone:</strong> {{ user.sellerprofile.phone_number }}</p>
+                <a href="{% url 'edit_seller_profile' %}" class="btn btn-primary w-100">Edit Profile</a>
+            </div>
+        </div>
+
+        <!-- Medicine Management -->
+        <div class="col-md-8">
+            <div class="card shadow-sm p-3 mb-4">
+                <h4 class="text-center">💊 My Medicines</h4>
+                <a href="{% url 'add_medicine' %}" class="btn btn-success mb-3">➕ Add New Medicine</a>
+                <a href="{% url 'upload_medicine' %}" class="btn btn-info mb-3">📤 Upload Medicines</a>
+                
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for medicine in medicines %}
+                            <tr>
+                                <td>{{ medicine.name }}</td>
+                                <td>₹{{ medicine.price }}</td>
+                                <td>{{ medicine.stock }}</td>
+                                <td>
+                                    <a href="{% url 'edit_medicine' medicine.pk %}" class="btn btn-warning btn-sm">✏ Edit</a>
+                                    <a href="{% url 'delete_medicine' medicine.pk %}" class="btn btn-danger btn-sm">🗑 Delete</a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No medicines listed yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Management -->
+    <div class="card shadow-sm p-3 mb-4">
+        <h4 class="text-center">📦 Orders Received</h4>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                    <tr>
+                        <td>#{{ order.id }}</td>
+                        <td>{{ order.customer.user.username }}</td>
+                        <td>
+                            <ul>
+                                {% for item in order.orderitem_set.all %}
+                                    <li>{{ item.medicine.name }} (x{{ item.quantity }})</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                        <td>₹{{ order.total_price }}</td>
+                        <td><span class="badge bg-info">{{ order.status }}</span></td>
+                        <td>
+                            <a href="#" class="btn btn-primary btn-sm">Update Status</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No orders received yet.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Logout Button -->
+    <div class="text-center">
+        <a href="{% url 'logout' %}" class="btn btn-danger">Logout</a>
+    </div>
+</div>
+{% endblock %}

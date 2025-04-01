@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block header %}
+    <h1 class="display-4 fw-bolder text-center">Welcome to GenericMediCare</h1>
+    <p class="lead fw-normal text-white-50 text-center">
+        Affordable, Trusted, and Accessible Medicines at Your Fingertips
+    </p>
+{% endblock %}
+
+{% block content %}
+    <section class="py-5">
+        <div class="container px-4 px-lg-5">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <h2>About GenericMediCare</h2>
+                    <p>
+                        GenericMediCare is an initiative to make *generic medicines accessible* to everyone, 
+                        especially in rural areas. We provide a seamless way to search, browse, and purchase 
+                        medicines at affordable prices.
+                    </p>
+                    <ul>
+                        <li>🛒 *Browse Medicines* with advanced filtering</li>
+                        <li>💊 *Get Generic Alternatives* by uploading prescriptions</li>
+                        <li>🚀 *Fast & Reliable Delivery* to your doorstep</li>
+                        <li>🔒 *Secure Transactions & Verified Sellers*</li>
+                    </ul>
+                    {% if user.is_authenticated %}
+                    {% if user.customerprofile %}
+                        <a class="btn btn-primary btn-lg" href="{% url 'browse_medicines' %}">Browse Medicines</a>
+                    {% elif user.sellerprofile %}
+                        <a class="btn btn-secondary btn-lg" href="{% url 'seller_dashboard' %}">Manage Listings</a>
+                    {% endif %}
+                    {% else %}
+                        <a class="btn btn-primary btn-lg" href="{% url 'browse_medicines' %}">Browse Medicines</a>
+                    {%endif%}
+                </div>
+                <div class="col-lg-6 text-center">
+                    <img src="{{ MEDIA_URL }}static/homepage_medicine.png" alt="Medicines" class="img-fluid rounded">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-5 bg-light">
+        <div class="container">
+            <h2 class="text-center mb-4">How It Works?</h2>
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <img src="{{ MEDIA_URL }}static/search_icon.png" alt="Search" class="mb-3" width="80">
+                    <h5>Search & Browse</h5>
+                    <p>Find the medicine you need using our easy-to-use filters.</p>
+                </div>
+                <div class="col-md-4">
+                    <img src="{{ MEDIA_URL }}static/prescription_icon.png" alt="Prescription" class="mb-3" width="80">
+                    <h5>Upload Prescription</h5>
+                    <p>Get *generic alternatives* suggested based on your prescription.</p>
+                </div>
+                <div class="col-md-4">
+                    <img src="{{ MEDIA_URL }}static/delivery_icon.png" alt="Delivery" class="mb-3" width="80">
+                    <h5>Fast & Secure Delivery</h5>
+                    <p>Receive medicines at your doorstep with *verified sellers*.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-5">
+        <div class="container text-center">
+            <h2>Why Choose GenericMediCare?</h2>
+            <p class="lead">
+                Save up to 80% on medicine costs with *safe and effective generic alternatives*.
+            </p>
+            <a href="{% url 'register' %}" class="btn btn-success">Sign Up Now</a>
+        </div>
+    </section>
+{% endblock %}

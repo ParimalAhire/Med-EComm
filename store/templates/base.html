@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenericMediCare</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'home' %}">GenericMediCare</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    
+    
+                    {% if not user.is_authenticated or user.customerprofile %}
+                    <!-- Show only to customers and guests -->
+                    <li class="nav-item"><a class="nav-link" href="{% url 'browse_medicines' %}">Browse Medicines</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="educationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Education
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="educationDropdown">
+                            <li><a class="dropdown-item" href="{% url 'education_articles' %}">Articles</a></li>
+                            <li><a class="dropdown-item" href="{% url 'education_infographics' %}">Infographics</a></li>
+                            <li><a class="dropdown-item" href="{% url 'education_faqs' %}">FAQs</a></li>
+                            <li><a class="dropdown-item" href="{% url 'education_videos' %}">Videos</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+    
+                    {% if user.is_authenticated %}
+                        {% if user.customerprofile %}
+                            <li class="nav-item"><a class="nav-link" href="{% url 'customer_dashboard' %}">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'view_cart' %}">
+                                Cart
+                                {% if request.user.is_authenticated and cart_count|default:0 > 0 %}
+                                    <span class="badge bg-danger">{{ cart_count }}</span>
+                                {% endif %}
+                            </a></li>  
+                        {% elif user.sellerprofile %}
+                            <li class="nav-item"><a class="nav-link" href="{% url 'seller_dashboard' %}">Dashboard</a></li>
+                        {% endif %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'logout' %}">Logout</a></li>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'register' %}">Register</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

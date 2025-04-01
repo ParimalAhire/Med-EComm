@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2 class="text-center my-4">Browse Medicines</h2>
+
+    <!-- Search Form -->
+    <form method="GET" class="d-flex mb-4">
+        <input type="text" name="q" class="form-control me-2" placeholder="Search by medicine name or ingredient" value="{{ request.GET.q }}">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+
+    <div class="row">
+        <!-- Sidebar for Filters -->
+        <div class="col-md-3">
+            <h5>Filters</h5>
+            <form method="GET" action="{% url 'browse_medicines' %}">
+                <div class="mb-3">
+                    <label for="brand" class="form-label">Brand</label>
+                    <select name="brand" class="form-select">
+                        <option value="">All Brands</option>
+                        {% for brand in brands %}
+                        <option value="{{ brand }}" {% if request.GET.brand == brand %}selected{% endif %}>{{ brand }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Stock Availability</label>
+                    <select name="stock" class="form-select">
+                        <option value="">All</option>
+                        <option value="in_stock" {% if request.GET.stock == "in_stock" %}selected{% endif %}>In Stock</option>
+                        <option value="out_of_stock" {% if request.GET.stock == "out_of_stock" %}selected{% endif %}>Out of Stock</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Sort By</label>
+                    <select name="sort" class="form-select">
+                        <option value="">Default</option>
+                        <option value="name_asc" {% if request.GET.sort == "name_asc" %}selected{% endif %}>Name (A-Z)</option>
+                        <option value="name_desc" {% if request.GET.sort == "name_desc" %}selected{% endif %}>Name (Z-A)</option>
+                        <option value="newest" {% if request.GET.sort == "newest" %}selected{% endif %}>Newest Arrivals</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+            </form>
+        </div>
+
+        <!-- Medicines Display -->
+        <div class="col-md-9">
+            <div class="row">
+                {% for medicine in medicines %}
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        {% if medicine.image %}
+                            <img src="{{ medicine.image.url }}" class="card-img-top" alt="{{ medicine.name }}">
+                        {% else %}
+                            <img src="https://via.placeholder.com/150" class="card-img-top" alt="No Image Available">
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ medicine.name }}</h5>
+                            <p class="card-text">{{ medicine.description|truncatewords:15 }}</p>
+                            <p class="fw-bold">₹{{ medicine.price }}</p>
+                            
+                            <!-- Add to Cart Logic -->
+                            {% if medicine.stock > 0 %}
+                            <p class="text-success">In Stock ({{ medicine.stock }} available)</p>
+
+                            {% if user.is_authenticated and user.customerprofile %}
+                                <a href="{% url 'add_to_cart' medicine.pk %}" class="btn btn-primary">Add to Cart</a>
+                            {% else %}
+                                <a href="{% url 'login' %}" class="btn btn-warning">Login to Add to Cart</a>
+                            {% endif %}
+                            {% else %}
+                                <p class="text-danger">Out of Stock</p>
+                                <button class="btn btn-secondary" disabled>Out of Stock</button>
+                            {%endif%}
+
+                            <a href="{% url 'medicine_detail' medicine.pk %}" class="btn btn-outline-secondary">View Details</a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-center">No medicines available.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enable Bootstrap tooltips -->
+<script>
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+</script>
+
+{% endblock %}

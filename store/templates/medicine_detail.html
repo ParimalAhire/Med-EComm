@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-5">
+            {% if medicine.image %}
+                <img src="{{ medicine.image.url }}" class="card-img-top" alt="{{ medicine.name }}">
+            {% else %}
+                <img src="https://unsplash.com/photos/orange-and-white-medication-pill-ZHys6xN7sUE" class="card-img-top" alt="No Image Available">
+            {% endif %}
+        </div>
+        <div class="col-md-7">
+            <h2>{{ medicine.name }}</h2>
+            <p class="text-muted">Brand: {{ medicine.brand_name }}</p>
+            <p><strong>Active Ingredients:</strong> {{ medicine.active_ingredients }}</p>
+            <p>{{ medicine.description }}</p>
+            <p class="fw-bold">Price: ₹{{ medicine.price }}</p>
+
+            {% if medicine.stock > 0 %}
+                <p class="text-success">In Stock ({{ medicine.stock }} available)</p>
+
+                {% if user.is_authenticated and user.customerprofile %}
+                    <a href="{% url 'add_to_cart' medicine.pk %}" class="btn btn-primary">Add to Cart</a>
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-warning">Login to Add to Cart</a>
+                {% endif %}
+            {% else %}
+                <p class="text-danger">Out of Stock</p>
+                <button class="btn btn-secondary" disabled>Out of Stock</button>
+            {% endif %}
+
+            {% if medicine.prescription_required %}
+                <p class="text-warning">⚠ Prescription Required</p>
+            {% endif %}
+
+            <!-- Back to Browse button -->
+            <a href="{% url 'browse_medicines' %}" class="btn btn-secondary mt-3">← Back to Browse</a>
+        </div>
+    </div>
+
+    <!-- Alternative Medicines Section -->
+    {% if alternatives %}
+    <hr>
+    <h3 class="mt-4">Generic Alternatives</h3>
+    <div class="row">
+        {% for alt in alternatives %}
+        <div class="col-md-4">
+            <div class="card mb-3">
+                {% if alt.image %}
+                    <img src="{{ alt.image.url }}" class="card-img-top" alt="{{ alt.name }}">
+                {% else %}
+                    <img src="https://unsplash.com/photos/orange-and-white-medication-pill-ZHys6xN7sUE" class="card-img-top" alt="No Image Available">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ alt.name }}</h5>
+                    <p class="fw-bold">₹{{ alt.price }}</p>
+                    <a href="{% url 'medicine_detail' alt.pk %}" class="btn btn-outline-primary">View Details</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <hr>
+        <p class="text-muted text-center">No generic alternatives available for this medicine.</p>
+    {% endif %}
+</div>
+{% endblock %}

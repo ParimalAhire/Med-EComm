@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center">📂 Upload Medicine List</h2>
+    
+    <div class="card shadow-sm p-4">
+        <p>Upload an Excel file (.xlsx) containing the medicine details.</p>
+        <p><strong>Required Columns:</strong> name, description, price, stock, active_ingredients, brand_name</p>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="file" class="form-label">Select Excel File:</label>
+                {{ form.file }}
+            </div>
+            <button type="submit" class="btn btn-success">📤 Upload</button>
+        </form>
+    </div>
+
+    {% if messages %}
+        <div class="mt-3">
+            {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="mt-3">
+        <a href="{% url 'seller_dashboard' %}" class="btn btn-secondary">⬅ Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}
