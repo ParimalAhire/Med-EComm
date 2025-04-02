@@ -17,34 +17,53 @@ def register(request):
     return render(request, 'register.html')
 
 # Customer Registration View
+from django.shortcuts import render, redirect
+from django.contrib.auth import login
+from django.contrib import messages
+from .forms import CustomerRegistrationForm, CustomerProfileForm
+
 def customer_register(request):
     if request.method == 'POST':
         form = CustomerRegistrationForm(request.POST)
+        profile_form = CustomerProfileForm(request.POST)  # Initialize profile form
 
-        if form.is_valid():
-            user = form.save()  # This already creates CustomerProfile
+        if form.is_valid() and profile_form.is_valid():
+            user = form.save()  # Save user first
+            profile = profile_form.save(commit=False)  # Create profile instance
+            profile.user = user  # Link profile to user
+            profile.save()  # Save profile
             login(request, user)
             return redirect('customer_dashboard')
         else:
             messages.error(request, "Please fix the errors below.")  
     else:
         form = CustomerRegistrationForm()
+        profile_form = CustomerProfileForm()  # Initialize empty profile form
 
-    return render(request, 'register_customer.html', {'form': form})
+    return render(request, 'register_customer.html', {'form': form, 'profile_form': profile_form})
 
 # Seller Registration View
+from .forms import SellerRegistrationForm, SellerProfileForm
+
 def seller_register(request):
     if request.method == 'POST':
         form = SellerRegistrationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
+        profile_form = SellerProfileForm(request.POST)  # Initialize profile form
+
+        if form.is_valid() and profile_form.is_valid():
+            user = form.save()  # Save user first
+            profile = profile_form.save(commit=False)  # Create profile instance
+            profile.user = user  # Link profile to user
+            profile.save()  # Save profile
             login(request, user)
             return redirect('seller_dashboard')
         else:
-            messages.error(request, "Error in form submission!")  # Display error message
+            messages.error(request, "Error in form submission!")  
     else:
         form = SellerRegistrationForm()
-    return render(request, 'register_seller.html', {'form': form})
+        profile_form = SellerProfileForm()  # Initialize empty profile form
+        
+    return render(request, 'register_seller.html', {'form': form, 'profile_form': profile_form})
 
 # 🔑 Login View
 def login_view(request):
@@ -201,31 +220,35 @@ def upload_medicine(request):
             file_name = uploaded_file.name.lower()
 
             try:
-                # Determine file type and read data
+                # Read file based on extension
                 if file_name.endswith('.xlsx'):
                     df = pd.read_excel(uploaded_file)
                 elif file_name.endswith('.csv'):
-                    df = pd.read_csv(io.StringIO(uploaded_file.read().decode('utf-8')))  # Read CSV properly
+                    df = pd.read_csv(io.StringIO(uploaded_file.read().decode('utf-8')))
                 else:
                     errors.append("Unsupported file format. Please upload a CSV or Excel (.xlsx) file.")
                     return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
 
-                # Convert column names to lowercase for case insensitivity
+                # Convert column names to lowercase for uniformity
                 df.columns = df.columns.str.strip().str.lower()
 
-                # Required columns (all in lowercase to match the converted df)
+                # Required columns
                 required_columns = {'name', 'description', 'price', 'stock', 'active_ingredients', 'brand_name', 'prescription_required'}
                 
-                # Find missing columns
+                # Check for missing columns
                 missing_columns = required_columns - set(df.columns)
                 if missing_columns:
                     errors.append(f"Missing required columns: {', '.join(missing_columns)}")
                     return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
 
-                # Keep only required columns, ignore others
+                # Keep only required columns
                 df = df[list(required_columns)]
 
-                # Clean and Validate Data
+                # Process "prescription_required" as boolean
+                df['prescription_required'] = df['prescription_required'].astype(str).str.strip().str.lower()
+                df['prescription_required'] = df['prescription_required'].map({'yes': True, 'no': False})
+
+                # Validate Data
                 for index, row in df.iterrows():
                     if pd.isnull(row['name']) or pd.isnull(row['price']) or pd.isnull(row['stock']):
                         errors.append(f"Row {index + 2}: 'name', 'price', and 'stock' cannot be empty.")
@@ -236,12 +259,8 @@ def upload_medicine(request):
                     if not isinstance(row['stock'], int) or row['stock'] < 0:
                         errors.append(f"Row {index + 2}: Stock should be a positive integer.")
 
-                    # Convert 'prescription_required' to Boolean (Yes/No case insensitive)
-                    if isinstance(row['prescription_required'], str):
-                        row['prescription_required'] = row['prescription_required'].strip().lower()
-
-                    if row['prescription_required'] not in ['yes', 'no']:
-                        errors.append(f"Row {index + 2}: 'prescription_required' must be Yes or No.")
+                    if pd.isnull(row['prescription_required']):
+                        errors.append(f"Row {index + 2}: 'prescription_required' must be 'Yes' or 'No'.")
 
                 # If errors exist, show them without processing further
                 if errors:
@@ -257,7 +276,7 @@ def upload_medicine(request):
                         stock=row['stock'],
                         active_ingredients=row.get('active_ingredients', ''),
                         brand_name=row.get('brand_name', ''),
-                        prescription_required=(row['prescription_required'] == 'yes')
+                        prescription_required=row['prescription_required']  # Now properly converted to Boolean
                     )
 
                 messages.success(request, "Medicines uploaded successfully!")
@@ -388,7 +407,7 @@ def browse_medicines(request):
 # Medicine Detail View with Alternatives
 def medicine_detail(request, pk):
     medicine = get_object_or_404(Medicine, pk=pk)
-    alternatives = medicine.get_alternative_medicines()  # Fetch alternatives based on active ingredients
+    alternatives = medicine.get_alternative_medicines().order_by('price')
     
     return render(request, 'medicine_detail.html', {
         'medicine': medicine,

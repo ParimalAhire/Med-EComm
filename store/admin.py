@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from .models import CustomerProfile, SellerProfile, Medicine, Order, OrderItem, PrescriptionUpload
+from .models import CustomerProfile, SellerProfile, Medicine, Order, OrderItem, PrescriptionUpload, Cart, CartItem
 
 # Inline Profile for Customers
 class CustomerProfileInline(admin.StackedInline):
@@ -62,6 +62,16 @@ class OrderItemAdmin(admin.ModelAdmin):
 class PrescriptionUploadAdmin(admin.ModelAdmin):
     list_display = ('customer', 'uploaded_at')
     search_fields = ('customer_user_username',)
+
+@admin.register(Cart)
+class CartAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'created_at')
+    search_fields = ('customer_user_username',)
+
+@admin.register(CartItem)
+class CartItemAdmin(admin.ModelAdmin):
+    list_display = ('cart', 'medicine', 'quantity')
+    search_fields = ('cart_customeruserusername', 'medicine_name')
 
 # Register all models in Django admin
 admin.site.site_header = "GenericMediCare Admin"
