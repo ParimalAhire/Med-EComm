@@ -5,9 +5,18 @@
     <h2 class="text-center">📂 Upload Medicine List</h2>
     
     <div class="card shadow-sm p-4">
-        <p>Upload an Excel file (.xlsx) containing the medicine details.</p>
-        <p><strong>Required Columns:</strong> name, description, price, stock, active_ingredients, brand_name</p>
-        
+        <p>Upload an Excel file (<strong>.xlsx</strong>) containing the medicine details.</p>
+        <p><strong>Required Columns:</strong></p>
+        <ul>
+            <li><strong>name</strong>: Medicine name</li>
+            <li><strong>description</strong>: Short description of the medicine</li>
+            <li><strong>price</strong>: Price in INR (₹)</li>
+            <li><strong>stock</strong>: Available stock quantity</li>
+            <li><strong>active_ingredients</strong>: Comma-separated list of active ingredients</li>
+            <li><strong>brand_name</strong>: Brand of the medicine</li>
+            <li class=><strong>prescription_required</strong>: TRUE or FALSE (if a prescription is needed)</li>
+        </ul>
+
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="mb-3">
@@ -25,6 +34,18 @@
                     {{ message }}
                 </div>
             {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Error Display Section -->
+    {% if errors %}
+        <div class="alert alert-danger mt-3">
+            <h5>⚠ Errors in File Upload</h5>
+            <ul>
+                {% for error in errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
         </div>
     {% endif %}
 

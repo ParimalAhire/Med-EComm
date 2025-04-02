@@ -54,15 +54,31 @@ class SellerRegistrationForm(UserCreationForm):  # Use UserCreationForm
         return user
 
 # Medicine form
+from django import forms
+from .models import Medicine
+
 class MedicineForm(forms.ModelForm):
     class Meta:
         model = Medicine
-        fields = ['name', 'description', 'price', 'stock', 'image']
+        fields = ['name', 'description', 'price', 'stock', 'active_ingredients', 'brand_name', 'prescription_required', 'image']
+        labels = {
+            'name': 'Medicine Name',
+            'description': 'Description',
+            'price': 'Price (₹)',
+            'stock': 'Stock Quantity',
+            'active_ingredients': 'Active Ingredients (comma-separated)',
+            'brand_name': 'Brand Name',
+            'prescription_required': 'Requires Prescription?',
+            'image': 'Upload Image',
+        }
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'price': forms.NumberInput(attrs={'class': 'form-control'}),
             'stock': forms.NumberInput(attrs={'class': 'form-control'}),
+            'active_ingredients': forms.TextInput(attrs={'class': 'form-control'}),
+            'brand_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'prescription_required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
 
@@ -96,7 +112,7 @@ class CheckoutForm(forms.Form):
     address = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}))
     city = forms.CharField(max_length=50, widget=forms.TextInput(attrs={'class': 'form-control'}))
     pincode = forms.CharField(max_length=10, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    
+
     alternate_phone = forms.CharField(max_length=15, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     delivery_instructions = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}))
 
@@ -104,3 +120,5 @@ class CheckoutForm(forms.Form):
         choices=[('cod', 'Cash on Delivery (COD)'), ('online', 'Online Payment')],
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+
+    prescription = forms.ImageField(required=False, widget=forms.FileInput(attrs={'class': 'form-control'}))  # Add Prescription Upload Field

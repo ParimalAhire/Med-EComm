@@ -3,6 +3,18 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="text-center">Seller Dashboard</h2>
+
+    <!-- Display messages -->
+    {% if messages %}
+        <div class="container mt-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
     
     <div class="row">
         <!-- Seller Profile Section -->
@@ -18,43 +30,45 @@
         </div>
 
         <!-- Medicine Management -->
-        <div class="col-md-8">
-            <div class="card shadow-sm p-3 mb-4">
-                <h4 class="text-center">💊 My Medicines</h4>
-                <a href="{% url 'add_medicine' %}" class="btn btn-success mb-3">➕ Add New Medicine</a>
-                <a href="{% url 'upload_medicine' %}" class="btn btn-info mb-3">📤 Upload Medicines</a>
-                
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Price</th>
-                            <th>Stock</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for medicine in medicines %}
-                            <tr>
-                                <td>{{ medicine.name }}</td>
-                                <td>₹{{ medicine.price }}</td>
-                                <td>{{ medicine.stock }}</td>
-                                <td>
-                                    <a href="{% url 'edit_medicine' medicine.pk %}" class="btn btn-warning btn-sm">✏ Edit</a>
-                                    <a href="{% url 'delete_medicine' medicine.pk %}" class="btn btn-danger btn-sm">🗑 Delete</a>
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-center">No medicines listed yet.</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+        <!-- Medicine Management -->
+<div class="col-md-8">
+    <div class="card shadow-sm p-3 mb-4">
+        <h4 class="text-center">💊 My Medicines</h4>
+        <a href="{% url 'add_medicine' %}" class="btn btn-success mb-3">➕ Add New Medicine</a>
+        <a href="{% url 'upload_medicine' %}" class="btn btn-info mb-3">📤 Upload Medicines</a>
 
+        <!-- Scrollable Table Container -->
+        <div style="max-height: 230px; overflow-y: auto;">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for medicine in medicines %}
+                        <tr>
+                            <td>{{ medicine.name }}</td>
+                            <td>₹{{ medicine.price }}</td>
+                            <td>{{ medicine.stock }}</td>
+                            <td>
+                                <a href="{% url 'edit_medicine' medicine.pk %}" class="btn btn-warning btn-sm">✏ Edit</a>
+                                <a href="{% url 'delete_medicine' medicine.pk %}" class="btn btn-danger btn-sm">🗑 Delete</a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">No medicines listed yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div> <!-- End Scrollable Table Container -->
+    </div>
+</div>
     <!-- Order Management -->
     <div class="card shadow-sm p-3 mb-4">
         <h4 class="text-center">📦 Orders Received</h4>

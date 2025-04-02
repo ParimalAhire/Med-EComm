@@ -62,6 +62,7 @@ class Order(models.Model):
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
 
+    prescription = models.ImageField(upload_to='prescriptions/', null=True, blank=True)
     def _str_(self):
         return f"Order {self.pk} - {self.customer.user.username}"
 

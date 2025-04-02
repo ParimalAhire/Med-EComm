@@ -6,27 +6,47 @@
     
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
+        
         <div class="mb-3">
             <label for="id_name" class="form-label">Medicine Name</label>
             {{ form.name }}
         </div>
+
         <div class="mb-3">
             <label for="id_description" class="form-label">Description</label>
             {{ form.description }}
         </div>
+
         <div class="mb-3">
             <label for="id_price" class="form-label">Price (₹)</label>
             {{ form.price }}
         </div>
+
         <div class="mb-3">
             <label for="id_stock" class="form-label">Stock Quantity</label>
             {{ form.stock }}
         </div>
+
+        <div class="mb-3">
+            <label for="id_active_ingredients" class="form-label">Active Ingredients</label>
+            {{ form.active_ingredients }}
+        </div>
+
+        <div class="mb-3">
+            <label for="id_brand_name" class="form-label">Brand Name</label>
+            {{ form.brand_name }}
+        </div>
+
+        <div class="mb-3">
+            <label for="id_prescription_required" class="form-label">Requires Prescription?</label>
+            {{ form.prescription_required }}
+        </div>
+
         <div class="mb-3">
             <label for="id_image" class="form-label">Upload Image</label>
             {{ form.image }}
         </div>
-        
+
         <button type="submit" class="btn btn-primary">Add Medicine</button>
         <a href="{% url 'seller_dashboard' %}" class="btn btn-secondary">Cancel</a>
     </form>

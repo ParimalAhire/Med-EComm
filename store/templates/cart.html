@@ -24,7 +24,8 @@
                             <!-- Decrease quantity button -->
                             <a href="{% url 'update_cart' item.medicine.pk 'decrease' %}" class="btn btn-outline-secondary btn-sm">-</a>
                             
-                            <input type="text" class="form-control text-center" value="{{ item.quantity }}" readonly>
+                            <input type="text" class="form-control text-center" value="{{ item.quantity }}" readonly title="Quantity">
+
                             
                             <!-- Increase quantity button (disabled if out of stock) -->
                             <a href="{% url 'update_cart' item.medicine.pk 'increase' %}" class="btn btn-outline-secondary btn-sm {% if item.quantity >= item.medicine.stock %}disabled{% endif %}">+</a>

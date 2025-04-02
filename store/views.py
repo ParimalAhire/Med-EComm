@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages 
 from django.db.models import Q
 import pandas as pd
+import io
 from .forms import CustomerRegistrationForm, SellerRegistrationForm, LoginForm, MedicineForm,MedicineUploadForm, ProfileEditForm,SellerProfileForm, CustomerProfileForm
 from .forms import CheckoutForm
 from .models import Medicine, Order, OrderItem,CustomerProfile, Cart, CartItem,User
@@ -86,12 +87,15 @@ def customer_dashboard(request):
     if not hasattr(request.user, 'customerprofile'):
         return redirect('home')  # Prevent unauthorized access
 
+    customer = request.user.customerprofile  # Get the customer profile
     medicines = Medicine.objects.all()
     orders = Order.objects.filter(customer=request.user.customerprofile)
+    cart_items = CartItem.objects.filter(cart__customer=customer)  # Get cart items for this customer
 
     return render(request, 'customer_dashboard.html', {
         'medicines': medicines,
-        'orders': orders
+        'orders': orders,
+        'cart_items': cart_items
     })
 
 # 🏪 Seller Dashboard (Only for Sellers)
@@ -130,6 +134,7 @@ def medicine_detail(request, pk):
 @login_required
 def add_medicine(request):
     if not hasattr(request.user, 'sellerprofile'):
+        messages.error(request, "Unauthorized access.")
         return redirect('home')  # Prevent unauthorized access
 
     if request.method == "POST":
@@ -138,13 +143,17 @@ def add_medicine(request):
             medicine = form.save(commit=False)
             medicine.seller = request.user.sellerprofile  # Assign the seller
             medicine.save()
+            messages.success(request, "Medicine added successfully!")
             return redirect('seller_dashboard')  # Redirect to seller dashboard after adding
+        else:
+            messages.error(request, "Please correct the errors below.")
     else:
         form = MedicineForm()
 
     return render(request, 'medicine_form.html', {'form': form})
 
 # edit medicine
+@login_required
 def edit_medicine(request, pk):
     medicine = get_object_or_404(Medicine, pk=pk)
 
@@ -156,7 +165,10 @@ def edit_medicine(request, pk):
         form = MedicineForm(request.POST, request.FILES, instance=medicine)
         if form.is_valid():
             form.save()
+            messages.success(request, "Medicine updated successfully!")
             return redirect('seller_dashboard')  # Redirect to seller's dashboard
+        else:
+            messages.error(request, "Please correct the errors below.")
     else:
         form = MedicineForm(instance=medicine)
 
@@ -169,30 +181,73 @@ def delete_medicine(request, pk):
 
     if request.method == 'POST':
         medicine.delete()
+        messages.success(request, "Medicine deleted successfully!")
         return redirect('seller_dashboard')
 
-    return render(request, 'medicine_form.html', {'form': medicine, 'delete': True})
+    return render(request, 'medicine_form.html', {'medicine': medicine, 'delete': True})
 
+# Add Medicine in Bulk
 @login_required
 def upload_medicine(request):
     if not hasattr(request.user, 'sellerprofile'):
         return redirect('home')  # Prevent unauthorized access
 
+    errors = []  # Store errors here
+
     if request.method == 'POST':
         form = MedicineUploadForm(request.POST, request.FILES)
         if form.is_valid():
-            excel_file = request.FILES['file']
+            uploaded_file = request.FILES['file']
+            file_name = uploaded_file.name.lower()
 
             try:
-                df = pd.read_excel(excel_file)  # Read the Excel file using pandas
-                
-                # Ensure required columns exist
-                required_columns = {'name', 'description', 'price', 'stock', 'active_ingredients', 'brand_name'}
-                if not required_columns.issubset(df.columns):
-                    messages.error(request, "Invalid file format! Missing required columns.")
-                    return redirect('upload_medicine')
+                # Determine file type and read data
+                if file_name.endswith('.xlsx'):
+                    df = pd.read_excel(uploaded_file)
+                elif file_name.endswith('.csv'):
+                    df = pd.read_csv(io.StringIO(uploaded_file.read().decode('utf-8')))  # Read CSV properly
+                else:
+                    errors.append("Unsupported file format. Please upload a CSV or Excel (.xlsx) file.")
+                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
 
-                # Loop through the rows and save medicines to the database
+                # Convert column names to lowercase for case insensitivity
+                df.columns = df.columns.str.strip().str.lower()
+
+                # Required columns (all in lowercase to match the converted df)
+                required_columns = {'name', 'description', 'price', 'stock', 'active_ingredients', 'brand_name', 'prescription_required'}
+                
+                # Find missing columns
+                missing_columns = required_columns - set(df.columns)
+                if missing_columns:
+                    errors.append(f"Missing required columns: {', '.join(missing_columns)}")
+                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
+
+                # Keep only required columns, ignore others
+                df = df[list(required_columns)]
+
+                # Clean and Validate Data
+                for index, row in df.iterrows():
+                    if pd.isnull(row['name']) or pd.isnull(row['price']) or pd.isnull(row['stock']):
+                        errors.append(f"Row {index + 2}: 'name', 'price', and 'stock' cannot be empty.")
+
+                    if not isinstance(row['price'], (int, float)) or row['price'] <= 0:
+                        errors.append(f"Row {index + 2}: Invalid price value.")
+
+                    if not isinstance(row['stock'], int) or row['stock'] < 0:
+                        errors.append(f"Row {index + 2}: Stock should be a positive integer.")
+
+                    # Convert 'prescription_required' to Boolean (Yes/No case insensitive)
+                    if isinstance(row['prescription_required'], str):
+                        row['prescription_required'] = row['prescription_required'].strip().lower()
+
+                    if row['prescription_required'] not in ['yes', 'no']:
+                        errors.append(f"Row {index + 2}: 'prescription_required' must be Yes or No.")
+
+                # If errors exist, show them without processing further
+                if errors:
+                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
+
+                # Save medicines if no errors
                 for _, row in df.iterrows():
                     Medicine.objects.create(
                         seller=request.user.sellerprofile,
@@ -201,22 +256,22 @@ def upload_medicine(request):
                         price=row['price'],
                         stock=row['stock'],
                         active_ingredients=row.get('active_ingredients', ''),
-                        brand_name=row.get('brand_name', '')
+                        brand_name=row.get('brand_name', ''),
+                        prescription_required=(row['prescription_required'] == 'yes')
                     )
 
                 messages.success(request, "Medicines uploaded successfully!")
                 return redirect('seller_dashboard')
 
             except Exception as e:
-                messages.error(request, f"Error processing file: {e}")
+                errors.append(f"Error processing file: {e}")
 
     else:
         form = MedicineUploadForm()
 
-    return render(request, 'upload_medicine.html', {'form': form})
+    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
 
 # Edit Seller Profile (Only for Sellers)
-
 @login_required
 def edit_seller_profile(request):
     if not hasattr(request.user, 'sellerprofile'):
@@ -415,15 +470,22 @@ def checkout(request):
     cart_items = cart.cartitem_set.all()
     total_price = cart.get_total()
 
-    # Fetch user details from profile
-    customer = request.user.customerprofile  
-    full_name = request.user.get_full_name() or request.user.username  
-    email = request.user.email  
-    phone = customer.phone_number  
+    customer = request.user.customerprofile
+    full_name = request.user.get_full_name() or request.user.username
+    email = request.user.email
+    phone = customer.phone_number
+
+    # Check if any medicine in the cart requires a prescription
+    prescription_required = any(item.medicine.prescription_required for item in cart_items)
 
     if request.method == "POST":
-        form = CheckoutForm(request.POST)
+        form = CheckoutForm(request.POST, request.FILES)  # Include request.FILES for file uploads
         if form.is_valid():
+            # Ensure prescription is uploaded if required
+            if prescription_required and 'prescription' not in request.FILES:
+                messages.error(request, "A prescription is required for some medicines in your cart.")
+                return redirect('checkout')
+
             # Create Order
             order = Order.objects.create(
                 customer=customer,
@@ -437,7 +499,8 @@ def checkout(request):
                 delivery_instructions=form.cleaned_data.get('delivery_instructions', ''),
                 total_price=total_price,
                 payment_method=form.cleaned_data['payment_method'],
-                status='Pending'
+                status='Pending',
+                prescription=form.cleaned_data.get('prescription') if prescription_required else None  # Save prescription only if required
             )
 
             # Move cart items to order and reduce stock
@@ -448,7 +511,6 @@ def checkout(request):
                     quantity=item.quantity,
                     price=item.medicine.price,
                 )
-                # Reduce stock
                 item.medicine.stock -= item.quantity
                 item.medicine.save()
 
@@ -467,7 +529,8 @@ def checkout(request):
         'total_price': total_price,
         'full_name': full_name,
         'email': email,
-        'phone': phone
+        'phone': phone,
+        'prescription_required': prescription_required  # Pass to template
     })
 
 
