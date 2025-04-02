@@ -48,13 +48,22 @@
 
             <div class="mb-3">
                 <label for="id_business_name" class="form-label">Business Name</label>
-                {{ profile_form.business_name }}
+                {% if editing %}
+                    {{ profile_form.business_name }}
+                {% else %}
+                    {{ form.business_name }}
+                {% endif %}
             </div>
-
+            
             <div class="mb-3">
                 <label for="id_phone_number" class="form-label">Phone Number</label>
-                {{ profile_form.phone_number }}
+                {% if editing %}
+                    {{ profile_form.phone_number }}
+                {% else %}
+                    {{ form.phone_number }}
+                {% endif %}
             </div>
+            
 
             <button type="submit" class="btn btn-success w-100">
                 {% if editing %} Save Changes {% else %} Register {% endif %}

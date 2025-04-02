@@ -52,15 +52,26 @@
             <!-- Customer Profile Fields -->
             <div class="mb-3">
                 <label for="id_phone_number" class="form-label">Phone Number</label>
-                {{ profile_form.phone_number }}
-                <div class="text-danger">{{ profile_form.phone_number.errors }}</div>
+                {% if editing %}
+                    {{ profile_form.phone_number }}
+                    <div class="text-danger">{{ profile_form.phone_number.errors }}</div>
+                {% else %}
+                    {{ form.phone_number }}
+                    <div class="text-danger">{{ form.phone_number.errors }}</div>
+                {% endif %}
             </div>
-            
+
             <div class="mb-3">
                 <label for="id_address" class="form-label">Address</label>
-                {{ profile_form.address }}
-                <div class="text-danger">{{ profile_form.address.errors }}</div>
+                {% if editing %}
+                    {{ profile_form.address }}
+                    <div class="text-danger">{{ profile_form.address.errors }}</div>
+                {% else %}
+                    {{ form.address }}
+                    <div class="text-danger">{{ form.address.errors }}</div>
+                {% endif %}
             </div>
+
 
             <button type="submit" class="btn btn-success w-100">
                 {% if editing %} Save Changes {% else %} Register {% endif %}

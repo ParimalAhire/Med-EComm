@@ -17,53 +17,34 @@ def register(request):
     return render(request, 'register.html')
 
 # Customer Registration View
-from django.shortcuts import render, redirect
-from django.contrib.auth import login
-from django.contrib import messages
-from .forms import CustomerRegistrationForm, CustomerProfileForm
-
 def customer_register(request):
     if request.method == 'POST':
         form = CustomerRegistrationForm(request.POST)
-        profile_form = CustomerProfileForm(request.POST)  # Initialize profile form
 
-        if form.is_valid() and profile_form.is_valid():
-            user = form.save()  # Save user first
-            profile = profile_form.save(commit=False)  # Create profile instance
-            profile.user = user  # Link profile to user
-            profile.save()  # Save profile
+        if form.is_valid():
+            user = form.save()  # This already creates CustomerProfile
             login(request, user)
             return redirect('customer_dashboard')
         else:
             messages.error(request, "Please fix the errors below.")  
     else:
         form = CustomerRegistrationForm()
-        profile_form = CustomerProfileForm()  # Initialize empty profile form
 
-    return render(request, 'register_customer.html', {'form': form, 'profile_form': profile_form})
+    return render(request, 'register_customer.html', {'form': form})
 
 # Seller Registration View
-from .forms import SellerRegistrationForm, SellerProfileForm
-
 def seller_register(request):
     if request.method == 'POST':
         form = SellerRegistrationForm(request.POST)
-        profile_form = SellerProfileForm(request.POST)  # Initialize profile form
-
-        if form.is_valid() and profile_form.is_valid():
-            user = form.save()  # Save user first
-            profile = profile_form.save(commit=False)  # Create profile instance
-            profile.user = user  # Link profile to user
-            profile.save()  # Save profile
+        if form.is_valid():
+            user = form.save()
             login(request, user)
             return redirect('seller_dashboard')
         else:
-            messages.error(request, "Error in form submission!")  
+            messages.error(request, "Error in form submission!")  # Display error message
     else:
         form = SellerRegistrationForm()
-        profile_form = SellerProfileForm()  # Initialize empty profile form
-        
-    return render(request, 'register_seller.html', {'form': form, 'profile_form': profile_form})
+    return render(request, 'register_seller.html', {'form': form})
 
 # 🔑 Login View
 def login_view(request):
