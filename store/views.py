@@ -7,7 +7,7 @@ import pandas as pd
 import io
 from .forms import CustomerRegistrationForm, SellerRegistrationForm, LoginForm, MedicineForm,MedicineUploadForm, ProfileEditForm,SellerProfileForm, CustomerProfileForm
 from .forms import CheckoutForm
-from .models import Medicine, Order, OrderItem,CustomerProfile, Cart, CartItem,User
+from .models import Medicine, Order, OrderItem,CustomerProfile, Cart, CartItem,User,Category
 
 # 🏠 Home Page
 def home(request):
@@ -135,42 +135,58 @@ def medicine_detail(request, pk):
 def add_medicine(request):
     if not hasattr(request.user, 'sellerprofile'):
         messages.error(request, "Unauthorized access.")
-        return redirect('home')  # Prevent unauthorized access
+        return redirect('home')
 
     if request.method == "POST":
         form = MedicineForm(request.POST, request.FILES)
         if form.is_valid():
             medicine = form.save(commit=False)
-            medicine.seller = request.user.sellerprofile  # Assign the seller
+            medicine.seller = request.user.sellerprofile
             medicine.save()
-            messages.success(request, "Medicine added successfully!")
-            return redirect('seller_dashboard')  # Redirect to seller dashboard after adding
+
+            category_text = form.cleaned_data.get('category_input', '')
+            category_names = [c.strip() for c in category_text.split(',') if c.strip()]
+
+            for cat_name in category_names:
+                category, _ = Category.objects.get_or_create(name=cat_name)
+                medicine.categories.add(category)
+
+            medicine.save()
+            form.save_m2m()  
+
+            messages.success(request, "✅ Medicine added successfully!")
+            return redirect('seller_dashboard')
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "⚠ Please correct the errors below.")
     else:
         form = MedicineForm()
 
     return render(request, 'medicine_form.html', {'form': form})
 
-# edit medicine
+# ✏️ Edit Medicine
 @login_required
 def edit_medicine(request, pk):
     medicine = get_object_or_404(Medicine, pk=pk)
 
-    # Ensure the logged-in user is the seller of this medicine
+    # Restrict access to the seller who added the medicine
     if medicine.seller != request.user.sellerprofile:
-        return redirect('seller_dashboard')  # Prevent unauthorized access
+        messages.error(request, "⚠ Unauthorized action.")
+        return redirect('seller_dashboard')
 
     if request.method == "POST":
         form = MedicineForm(request.POST, request.FILES, instance=medicine)
         if form.is_valid():
             form.save()
-            messages.success(request, "Medicine updated successfully!")
-            return redirect('seller_dashboard')  # Redirect to seller's dashboard
+            messages.success(request, "✅ Medicine updated successfully!")
+            return redirect('seller_dashboard')
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "⚠ Please correct the errors below.")
     else:
-        form = MedicineForm(instance=medicine)
+        # Populate category field as a comma-separated string
+        initial_data = {
+            'category_input': ', '.join(medicine.categories.values_list('name', flat=True))
+        }
+        form = MedicineForm(instance=medicine, initial=initial_data)
 
     return render(request, 'medicine_form.html', {'form': form, 'medicine': medicine})
 
@@ -186,16 +202,19 @@ def delete_medicine(request, pk):
 
     return render(request, 'medicine_form.html', {'medicine': medicine, 'delete': True})
 
-# Add Medicine in Bulk
+# Upload Medicines in Bulk (Only for Sellers)
 @login_required
 def upload_medicine(request):
     if not hasattr(request.user, 'sellerprofile'):
         return redirect('home')  # Prevent unauthorized access
 
     errors = []  # Store errors here
+    categories = Category.objects.all()  # Fetch categories for checkboxes
 
     if request.method == 'POST':
         form = MedicineUploadForm(request.POST, request.FILES)
+        selected_categories = request.POST.getlist('categories')  # Get selected categories
+
         if form.is_valid():
             uploaded_file = request.FILES['file']
             file_name = uploaded_file.name.lower()
@@ -208,19 +227,19 @@ def upload_medicine(request):
                     df = pd.read_csv(io.StringIO(uploaded_file.read().decode('utf-8')))
                 else:
                     errors.append("Unsupported file format. Please upload a CSV or Excel (.xlsx) file.")
-                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
+                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors, 'categories': categories})
 
                 # Convert column names to lowercase for uniformity
                 df.columns = df.columns.str.strip().str.lower()
 
                 # Required columns
                 required_columns = {'name', 'description', 'price', 'stock', 'active_ingredients', 'brand_name', 'prescription_required'}
-                
+
                 # Check for missing columns
                 missing_columns = required_columns - set(df.columns)
                 if missing_columns:
                     errors.append(f"Missing required columns: {', '.join(missing_columns)}")
-                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
+                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors, 'categories': categories})
 
                 # Keep only required columns
                 df = df[list(required_columns)]
@@ -229,27 +248,32 @@ def upload_medicine(request):
                 df['prescription_required'] = df['prescription_required'].astype(str).str.strip().str.lower()
                 df['prescription_required'] = df['prescription_required'].map({'yes': True, 'no': False})
 
-                # Validate Data
+                # Validate and save medicines
                 for index, row in df.iterrows():
                     if pd.isnull(row['name']) or pd.isnull(row['price']) or pd.isnull(row['stock']):
                         errors.append(f"Row {index + 2}: 'name', 'price', and 'stock' cannot be empty.")
+                        continue
 
                     if not isinstance(row['price'], (int, float)) or row['price'] <= 0:
                         errors.append(f"Row {index + 2}: Invalid price value.")
+                        continue
 
                     if not isinstance(row['stock'], int) or row['stock'] < 0:
                         errors.append(f"Row {index + 2}: Stock should be a positive integer.")
+                        continue
 
                     if pd.isnull(row['prescription_required']):
                         errors.append(f"Row {index + 2}: 'prescription_required' must be 'Yes' or 'No'.")
+                        continue
 
-                # If errors exist, show them without processing further
-                if errors:
-                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
+                    # Check for duplicate medicine (same name and seller)
+                    existing_medicine = Medicine.objects.filter(name=row['name'], seller=request.user.sellerprofile).first()
+                    if existing_medicine:
+                        errors.append(f"Row {index + 2}: Medicine '{row['name']}' already exists.")
+                        continue  # Skip adding duplicate
 
-                # Save medicines if no errors
-                for _, row in df.iterrows():
-                    Medicine.objects.create(
+                    # Save new medicine
+                    medicine = Medicine.objects.create(
                         seller=request.user.sellerprofile,
                         name=row['name'],
                         description=row.get('description', ''),
@@ -257,8 +281,17 @@ def upload_medicine(request):
                         stock=row['stock'],
                         active_ingredients=row.get('active_ingredients', ''),
                         brand_name=row.get('brand_name', ''),
-                        prescription_required=row['prescription_required']  # Now properly converted to Boolean
+                        prescription_required=row['prescription_required']
                     )
+
+                    # Assign selected categories
+                    for category_id in selected_categories:
+                        category = Category.objects.get(id=category_id)
+                        medicine.categories.add(category)
+
+                # If errors exist, return with messages
+                if errors:
+                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors, 'categories': categories})
 
                 messages.success(request, "Medicines uploaded successfully!")
                 return redirect('seller_dashboard')
@@ -269,7 +302,7 @@ def upload_medicine(request):
     else:
         form = MedicineUploadForm()
 
-    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
+    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors, 'categories': categories})
 
 # Edit Seller Profile (Only for Sellers)
 @login_required
@@ -334,16 +367,16 @@ def edit_customer_profile(request):
 
 #Browse Medicines (Available to All)
 def browse_medicines(request):
-    # Restirict Access to sellers
+    # Restrict Access to sellers
     if request.user.is_authenticated and hasattr(request.user, 'sellerprofile'):
         return redirect('seller_dashboard')
     
     medicines = Medicine.objects.all()
+    categories = Category.objects.all()  # ✅ Fetch available categories
 
     # Get filter parameters from request
     query = request.GET.get('q', '')  # Search query
-    category = request.GET.get('category')
-    form = request.GET.get('form')
+    category_id = request.GET.get('category')  # ✅ Fetch selected category
     brand = request.GET.get('brand')
     stock = request.GET.get('stock')
     sort = request.GET.get('sort')
@@ -352,14 +385,13 @@ def browse_medicines(request):
     if query:
         medicines = medicines.filter(
             Q(name__icontains=query) | Q(active_ingredients__icontains=query)
-
         )
 
+    # Apply category filter ✅
+    if category_id:
+        medicines = medicines.filter(categories__id=category_id)
+
     # Apply additional filters
-    if category:
-        medicines = medicines.filter(description__icontains=category)
-    if form:
-        medicines = medicines.filter(description__icontains=form)
     if brand:
         medicines = medicines.filter(brand_name=brand)
     if stock == 'in_stock':
@@ -381,7 +413,9 @@ def browse_medicines(request):
     return render(request, 'browse_medicines.html', {
         'medicines': medicines,
         'brands': brands,
-        'query': query,  # Pass query to the template for retaining search input
+        'categories': categories,  # ✅ Pass categories to template
+        'query': query,  
+        'selected_category': category_id,  # ✅ Pass selected category to retain selection
     })
 
 

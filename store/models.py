@@ -8,7 +8,7 @@ class CustomerProfile(models.Model):
     phone_number = models.CharField(max_length=15)
     address = models.TextField()
 
-    def _str_(self):
+    def __str__(self):
         return self.user.username
 
 # Seller Profile Model
@@ -17,8 +17,14 @@ class SellerProfile(models.Model):
     business_name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=15)
 
-    def _str_(self):
+    def __str__(self):
         return self.user.username
+
+class Category(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.name
 
 # Medicine Model
 class Medicine(models.Model):
@@ -32,11 +38,14 @@ class Medicine(models.Model):
     active_ingredients = models.TextField(help_text="Comma-separated active ingredients")  # Used for mapping alternatives
     brand_name = models.CharField(max_length=255, null=True, blank=True)
 
+    # ✅ Many-to-Many Relationship with Category
+    categories = models.ManyToManyField(Category, blank=True,related_name="medicines")
+
     def get_alternative_medicines(self):
         """Fetches medicines with the same active ingredients but different brands."""
         return Medicine.objects.filter(active_ingredients=self.active_ingredients).exclude(id=self.id)
 
-    def _str_(self):
+    def __str__(self):
         return f"{self.name} ({self.active_ingredients})"
 
 # Order Model
@@ -63,7 +72,7 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
 
     prescription = models.ImageField(upload_to='prescriptions/', null=True, blank=True)
-    def _str_(self):
+    def __str__(self):
         return f"Order {self.pk} - {self.customer.user.username}"
 
 class OrderItem(models.Model):
@@ -72,7 +81,7 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)  # Store price at purchase time
 
-    def _str_(self):
+    def __str__(self):
         return f"{self.quantity} x {self.medicine.name} (Order {self.order.pk})"
     
 # Prescription Upload Model
@@ -81,7 +90,7 @@ class PrescriptionUpload(models.Model):
     prescription = models.ImageField(upload_to='prescriptions/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
     
-    def _str_(self):
+    def __str__(self):
         return f"Prescription by {self.customer.user.username}"
     
 # Cart Model
@@ -93,7 +102,7 @@ class Cart(models.Model):
         """Calculate total price of cart items."""
         return sum(item.get_total_price() for item in self.cartitem_set.all())
 
-    def _str_(self):
+    def __str__(self):
         return f"Cart of {self.customer.user.username}"
 
 
@@ -107,5 +116,5 @@ class CartItem(models.Model):
         """Total price of this item (medicine price * quantity)."""
         return self.medicine.price * self.quantity
 
-    def _str_(self):
+    def __str__(self):
         return f"{self.quantity} x {self.medicine.name} in {self.cart.customer.user.username}'s cart"

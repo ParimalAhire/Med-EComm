@@ -15,9 +15,24 @@
         <div class="col-md-3">
             <h5>Filters</h5>
             <form method="GET" action="{% url 'browse_medicines' %}">
+
+                <!-- Category Filter -->
+                <div class="mb-3">
+                    <label for="category" class="form-label">Category</label>
+                    <select name="category" class="form-select" title="Select a category">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if selected_category|stringformat:"s" == category.id|stringformat:"s" %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Brand Filter -->
                 <div class="mb-3">
                     <label for="brand" class="form-label">Brand</label>
-                    <select name="brand" class="form-select">
+                    <select name="brand" class="form-select" title="Select a brand">
                         <option value="">All Brands</option>
                         {% for brand in brands %}
                         <option value="{{ brand }}" {% if request.GET.brand == brand %}selected{% endif %}>{{ brand }}</option>
@@ -25,18 +40,20 @@
                     </select>
                 </div>
 
+                <!-- Stock Availability -->
                 <div class="mb-3">
                     <label class="form-label">Stock Availability</label>
-                    <select name="stock" class="form-select">
+                    <select name="stock" class="form-select" title="Stock Availability">
                         <option value="">All</option>
                         <option value="in_stock" {% if request.GET.stock == "in_stock" %}selected{% endif %}>In Stock</option>
                         <option value="out_of_stock" {% if request.GET.stock == "out_of_stock" %}selected{% endif %}>Out of Stock</option>
                     </select>
                 </div>
 
+                <!-- Sorting -->
                 <div class="mb-3">
                     <label class="form-label">Sort By</label>
-                    <select name="sort" class="form-select">
+                    <select name="sort" class="form-select" title="Sort options">
                         <option value="">Default</option>
                         <option value="name_asc" {% if request.GET.sort == "name_asc" %}selected{% endif %}>Name (A-Z)</option>
                         <option value="name_desc" {% if request.GET.sort == "name_desc" %}selected{% endif %}>Name (Z-A)</option>
@@ -63,6 +80,16 @@
                             <h5 class="card-title">{{ medicine.name }}</h5>
                             <p class="card-text">{{ medicine.description|truncatewords:15 }}</p>
                             <p class="fw-bold">₹{{ medicine.price }}</p>
+
+                            <!-- Display Medicine Categories -->
+                            <p>
+                                <strong>Categories:</strong>
+                                {% for category in medicine.categories.all %}
+                                    <span class="badge bg-secondary">{{ category.name }}</span>
+                                {% empty %}
+                                    <span class="text-muted">No category</span>
+                                {% endfor %}
+                            </p>
                             
                             <!-- Add to Cart Logic -->
                             {% if medicine.stock > 0 %}

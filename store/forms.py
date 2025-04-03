@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from .models import CustomerProfile, SellerProfile,Medicine
+from .models import CustomerProfile, SellerProfile,Medicine, Category
 
 # Customer Registration Form
 class CustomerRegistrationForm(UserCreationForm):  
@@ -54,10 +54,13 @@ class SellerRegistrationForm(UserCreationForm):  # Use UserCreationForm
         return user
 
 # Medicine form
-from django import forms
-from .models import Medicine
-
 class MedicineForm(forms.ModelForm):
+    category_input = forms.CharField(
+        required=False,
+        label="Categories (comma-separated)",
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+    )
+
     class Meta:
         model = Medicine
         fields = ['name', 'description', 'price', 'stock', 'active_ingredients', 'brand_name', 'prescription_required', 'image']
@@ -81,6 +84,33 @@ class MedicineForm(forms.ModelForm):
             'prescription_required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
+
+    def clean_category_input(self):
+        """Ensure the category input is a valid string and process it correctly."""
+        category_data = self.cleaned_data.get('category_input', '')
+
+        # ✅ Handle the case where category_input might be a list
+        if isinstance(category_data, list):
+            category_data = ', '.join(category_data)
+
+        return category_data.strip()  # Return cleaned category text
+
+    def save(self, commit=True):
+        medicine = super().save(commit=False)
+
+        category_text = self.cleaned_data.get('category_input', '')
+        category_names = [c.strip() for c in category_text.split(',') if c.strip()]
+
+
+        if commit:
+            medicine.save()  
+
+            medicine.categories.clear()  
+            for cat_name in category_names:
+                category, created = Category.objects.get_or_create(name=cat_name)
+                medicine.categories.add(category)
+
+        return medicine
 
 # Login Form
 class LoginForm(forms.Form):

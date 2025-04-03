@@ -2,60 +2,90 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2 class="mb-3">
+    <h2 class="mb-3 text-center">
         {% if delete %}
-            Delete Medicine
+            ❌ Delete Medicine
         {% elif form.instance.pk %}
-            Edit Medicine
+            ✏️ Edit Medicine
         {% else %}
-            Add Medicine
+            ➕ Add Medicine
         {% endif %}
     </h2>
 
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
+    <!-- Display Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
 
-        {% if delete %}
-            <p>Are you sure you want to delete <strong>{{ form.instance.name }}</strong>?</p>
-        {% else %}
-            <div class="mb-3">
-                <label for="id_name" class="form-label">Medicine Name</label>
-                {{ form.name }}
-            </div>
-            <div class="mb-3">
-                <label for="id_description" class="form-label">Description</label>
-                {{ form.description }}
-            </div>
-            <div class="mb-3">
-                <label for="id_price" class="form-label">Price (₹)</label>
-                {{ form.price }}
-            </div>
-            <div class="mb-3">
-                <label for="id_stock" class="form-label">Stock Quantity</label>
-                {{ form.stock }}
-            </div>
-            <div class="mb-3">
-                <label for="id_active_ingredients" class="form-label">Active Ingredients</label>
-                {{ form.active_ingredients }}
-            </div>
-            <div class="mb-3">
-                <label for="id_brand_name" class="form-label">Brand Name</label>
-                {{ form.brand_name }}
-            </div>
-            <div class="mb-3">
-                <label for="id_prescription_required" class="form-label">Requires Prescription?</label>
-                {{ form.prescription_required }}
-            </div>
-            <div class="mb-3">
-                <label for="id_image" class="form-label">Upload Image</label>
-                {{ form.image }}
-            </div>
-        {% endif %}
+    <div class="card p-4 shadow-sm">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
 
-        <button type="submit" class="btn btn-{% if delete %}danger{% else %}primary{% endif %}">
-            {% if delete %}Delete{% elif form.instance.pk %}Save Changes{% else %}Add Medicine{% endif %}
-        </button>
-        <a href="{% url 'seller_dashboard' %}" class="btn btn-secondary">Cancel</a>
-    </form>
+            {% if delete %}
+                <p>Are you sure you want to delete <strong>{{ medicine.name }}</strong>?</p>
+            {% else %}
+                <div class="mb-3">
+                    <label for="id_name" class="form-label">Medicine Name</label>
+                    {{ form.name }}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_description" class="form-label">Description</label>
+                    {{ form.description }}
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="id_price" class="form-label">Price (₹)</label>
+                            {{ form.price }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="id_stock" class="form-label">Stock Quantity</label>
+                            {{ form.stock }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_active_ingredients" class="form-label">Active Ingredients</label>
+                    {{ form.active_ingredients }}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_brand_name" class="form-label">Brand Name</label>
+                    {{ form.brand_name }}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_prescription_required" class="form-label">Requires Prescription?</label>
+                    {{ form.prescription_required }}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_image" class="form-label">Upload Image</label>
+                    {{ form.image }}
+                </div>
+
+                <!-- ✅ New Category Input (Comma-separated) -->
+                <div class="mb-3">
+                    <label for="id_category_input" class="form-label">Categories (comma-separated)</label>
+                    {{ form.category_input }}
+                    <small class="text-muted">Example: Painkiller, Antibiotic, Analgesic</small>
+                </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-{% if delete %}danger{% else %}primary{% endif %}">
+                {% if delete %}❌ Delete{% elif form.instance.pk %}💾 Save Changes{% else %}➕ Add Medicine{% endif %}
+            </button>
+            <a href="{% url 'seller_dashboard' %}" class="btn btn-secondary">⬅ Cancel</a>
+        </form>
+    </div>
 </div>
 {% endblock %}

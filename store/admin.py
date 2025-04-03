@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from .models import CustomerProfile, SellerProfile, Medicine, Order, OrderItem, PrescriptionUpload, Cart, CartItem
+from .models import CustomerProfile, SellerProfile, Medicine, Order, OrderItem, PrescriptionUpload, Cart, CartItem, Category
 
 # Inline Profile for Customers
 class CustomerProfileInline(admin.StackedInline):
@@ -35,12 +35,18 @@ class SellerProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'business_name', 'phone_number')
     search_fields = ('user__username', 'business_name')
 
+# ✅ Register Category Model
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
 # Register Medicine Model
 @admin.register(Medicine)
 class MedicineAdmin(admin.ModelAdmin):
     list_display = ('name', 'price', 'seller', 'prescription_required')
     search_fields = ('name', 'active_ingredients', 'brand_name')
-    list_filter = ('seller', 'prescription_required')
+    list_filter = ('seller', 'prescription_required','categories')
     ordering = ('name',)
 
 # Register Order Model
@@ -48,30 +54,30 @@ class MedicineAdmin(admin.ModelAdmin):
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'customer', 'total_price', 'status', 'created_at')
     list_filter = ('status', 'created_at')
-    search_fields = ('customer_user_username',)
+    search_fields = ('customer__user__username',)
     ordering = ('-created_at',)
 
 # Register OrderItem Model
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ('order', 'medicine', 'quantity')
-    search_fields = ('order_customeruserusername', 'medicine_name')
+    search_fields = ('order__customeruserusername', 'medicine__name')
 
 # Register PrescriptionUpload Model
 @admin.register(PrescriptionUpload)
 class PrescriptionUploadAdmin(admin.ModelAdmin):
     list_display = ('customer', 'uploaded_at')
-    search_fields = ('customer_user_username',)
+    search_fields = ('customer__user__username',)
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
     list_display = ('customer', 'created_at')
-    search_fields = ('customer_user_username',)
+    search_fields = ('customer__user__username',)
 
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):
     list_display = ('cart', 'medicine', 'quantity')
-    search_fields = ('cart_customeruserusername', 'medicine_name')
+    search_fields = ('cart__customeruserusername', 'medicine__name')
 
 # Register all models in Django admin
 admin.site.site_header = "GenericMediCare Admin"

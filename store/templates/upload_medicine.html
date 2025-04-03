@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="text-center">📂 Upload Medicine List</h2>
-    
+
     <div class="card shadow-sm p-4">
         <p>Upload an Excel file (<strong>.xlsx</strong>) containing the medicine details.</p>
         <p><strong>Required Columns:</strong></p>
@@ -14,19 +14,52 @@
             <li><strong>stock</strong>: Available stock quantity</li>
             <li><strong>active_ingredients</strong>: Comma-separated list of active ingredients</li>
             <li><strong>brand_name</strong>: Brand of the medicine</li>
-            <li class=><strong>prescription_required</strong>: TRUE or FALSE (if a prescription is needed)</li>
+            <li><strong>prescription_required</strong>: Yes or No (if a prescription is needed)</li>
         </ul>
 
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
+
+            <!-- ✅ Display Form Errors (if any) -->
+            {% if form.errors %}
+                <div class="alert alert-danger">
+                    <ul>
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ field|title }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <!-- ✅ File Upload -->
             <div class="mb-3">
-                <label for="file" class="form-label">Select Excel File:</label>
+                <label for="id_file" class="form-label">Select Excel File:</label>
                 {{ form.file }}
             </div>
+
+            <!-- ✅ Multiple Category Selection (Checkboxes) -->
+            <div class="mb-3">
+                <label class="form-label">Select Categories:</label>
+                <div class="form-check">
+                    {% for category in categories %}
+                        <input type="checkbox" name="categories" value="{{ category.id }}" 
+                               class="form-check-input" id="category_{{ category.id }}">
+                        <label class="form-check-label" for="category_{{ category.id }}">
+                            {{ category.name }}
+                        </label>
+                        <br>
+                    {% endfor %}
+                </div>
+                <small class="text-muted">* Selected categories will be assigned to all uploaded medicines.</small>
+            </div>
+
             <button type="submit" class="btn btn-success">📤 Upload</button>
         </form>
     </div>
 
+    <!-- ✅ Success Messages -->
     {% if messages %}
         <div class="mt-3">
             {% for message in messages %}
@@ -37,7 +70,7 @@
         </div>
     {% endif %}
 
-    <!-- Error Display Section -->
+    <!-- ✅ Error Display Section -->
     {% if errors %}
         <div class="alert alert-danger mt-3">
             <h5>⚠ Errors in File Upload</h5>
