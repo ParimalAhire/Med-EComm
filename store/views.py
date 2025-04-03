@@ -202,18 +202,16 @@ def delete_medicine(request, pk):
 
     return render(request, 'medicine_form.html', {'medicine': medicine, 'delete': True})
 
-# Upload Medicines in Bulk (Only for Sellers)
+# Medicine Upload (Bulk Upload)
 @login_required
 def upload_medicine(request):
     if not hasattr(request.user, 'sellerprofile'):
         return redirect('home')  # Prevent unauthorized access
 
     errors = []  # Store errors here
-    categories = Category.objects.all()  # Fetch categories for checkboxes
 
     if request.method == 'POST':
         form = MedicineUploadForm(request.POST, request.FILES)
-        selected_categories = request.POST.getlist('categories')  # Get selected categories
 
         if form.is_valid():
             uploaded_file = request.FILES['file']
@@ -227,22 +225,19 @@ def upload_medicine(request):
                     df = pd.read_csv(io.StringIO(uploaded_file.read().decode('utf-8')))
                 else:
                     errors.append("Unsupported file format. Please upload a CSV or Excel (.xlsx) file.")
-                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors, 'categories': categories})
+                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
 
                 # Convert column names to lowercase for uniformity
                 df.columns = df.columns.str.strip().str.lower()
 
                 # Required columns
-                required_columns = {'name', 'description', 'price', 'stock', 'active_ingredients', 'brand_name', 'prescription_required'}
+                required_columns = {'name', 'description', 'price', 'stock', 'active_ingredients', 'brand_name', 'prescription_required', 'categories'}
 
                 # Check for missing columns
                 missing_columns = required_columns - set(df.columns)
                 if missing_columns:
                     errors.append(f"Missing required columns: {', '.join(missing_columns)}")
-                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors, 'categories': categories})
-
-                # Keep only required columns
-                df = df[list(required_columns)]
+                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
 
                 # Process "prescription_required" as boolean
                 df['prescription_required'] = df['prescription_required'].astype(str).str.strip().str.lower()
@@ -284,16 +279,20 @@ def upload_medicine(request):
                         prescription_required=row['prescription_required']
                     )
 
-                    # Assign selected categories
-                    for category_id in selected_categories:
-                        category = Category.objects.get(id=category_id)
-                        medicine.categories.add(category)
+                    # ✅ Process categories from file
+                    if not pd.isnull(row.get('categories')):  # Check if categories column is not empty
+                        category_names = [c.strip() for c in row['categories'].split(',')]  # Split by comma
+                        existing_categories = Category.objects.filter(name__in=category_names)  # Get matching categories
+
+                        # Assign categories to medicine
+                        if existing_categories.exists():
+                            medicine.categories.set(existing_categories)  # Assign matched categories
 
                 # If errors exist, return with messages
                 if errors:
-                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors, 'categories': categories})
+                    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
 
-                messages.success(request, "Medicines uploaded successfully!")
+                messages.success(request, "✅ Medicines uploaded successfully!")
                 return redirect('seller_dashboard')
 
             except Exception as e:
@@ -302,7 +301,7 @@ def upload_medicine(request):
     else:
         form = MedicineUploadForm()
 
-    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors, 'categories': categories})
+    return render(request, 'upload_medicine.html', {'form': form, 'errors': errors})
 
 # Edit Seller Profile (Only for Sellers)
 @login_required
